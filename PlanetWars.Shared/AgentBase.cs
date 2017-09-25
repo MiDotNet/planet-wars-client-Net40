@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using PlanetWars.Shared;
 
-namespace CSharpAgent
+namespace PlanetWars.Shared
 {
     public class AgentBase
     {
-        private bool _isRunning = false;
         private readonly HttpClient _client = null;
 
         private List<MoveRequest> _pendingMoveRequests = new List<MoveRequest>();
@@ -32,7 +30,7 @@ namespace CSharpAgent
             GameId = gameId;
             MapGeneration = mapGeneration;
 
-            _client = new HttpClient() { BaseAddress = new Uri("http://T60849WB8XG2.SOM.AD.STATE.MI.US/PlanetWars/") };
+            _client = new HttpClient() { BaseAddress = new Uri("http://localhost/PlanetWars/") };
             _client.DefaultRequestHeaders.Accept.Clear();
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
@@ -115,26 +113,26 @@ namespace CSharpAgent
         public async Task Start()
         {
             await Logon();
-            if (!_isRunning)
+
+            while (true)
             {
-                _isRunning = true;
-                while (_isRunning)
+                if (TimeToNextTurn > 0)
                 {
-                    if (TimeToNextTurn > 0)
-                    {
-                        await Task.Delay((int)(TimeToNextTurn));
-                    }
+                    await Task.Delay((int)(TimeToNextTurn));
+                }
 
-                    var gs = await UpdateGameState();
-                    if (gs.IsGameOver)
-                    {
-                        _isRunning = false;
-                        Console.WriteLine("Game Over!");
-                        Console.WriteLine(gs.Status);
-                        _client.Dispose();
-                        break;
-                    }
+                var gs = await UpdateGameState();
 
+                if (gs.IsGameOver)
+                {
+                    Console.WriteLine("Game Over!");
+                    Console.WriteLine(gs.Status);
+                    _client.Dispose();
+                    break;
+                }
+
+                if (!gs.Waiting)
+                {
                     Update(gs);
                     var ur = await SendUpdate(this._pendingMoveRequests);
                     this._pendingMoveRequests.Clear();
